@@ -1,4 +1,4 @@
-# Copyright 2015 Paul Balanca. All Rights Reserved.
+# opyright 2015 Paul Balanca. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -56,10 +56,10 @@ import tensorflow as tf
 import xml.etree.ElementTree as ET
 
 from datasets.dataset_utils import int64_feature, float_feature, bytes_feature
-from datasets.pascalvoc_common import VOC_LABELS
+from datasets.beer_common import VOC_LABELS
 
 # Original dataset organisation.
-DIRECTORY_ANNOTATIONS = '/Annotations/'#Annotations/
+DIRECTORY_ANNOTATIONS = '/nfshome/xueqin/udalearn/BeerData/Annotations/'#Annotations/
 DIRECTORY_IMAGES = '/JPEGImages/'
 
 # TFRecords convertion parameters.
@@ -80,8 +80,13 @@ def _process_image(directory, name):
     """
     # Read the image file.
     filename = directory + DIRECTORY_IMAGES + name + '.jpg'
-    image_data = tf.gfile.FastGFile(filename, 'r').read()
-
+    #print("----")
+    #print('directory',directory)
+    #print('DIRECTORY_IMAGES',DIRECTORY_IMAGES)
+    #print('name',name)
+    #print('filename',filename)
+    image_data = tf.gfile.FastGFile(filename, 'rb').read()
+    
     # Read the XML annotation file.
     filename = os.path.join(directory, DIRECTORY_ANNOTATIONS, name + '.xml')
     tree = ET.parse(filename)
@@ -197,6 +202,7 @@ def run(dataset_dir, output_dir, name='voc_train', shuffling=False):
     # Dataset filenames, and shuffling.
     path = os.path.join(dataset_dir, DIRECTORY_ANNOTATIONS)
     filenames = sorted(os.listdir(path))
+    #print("filenames",filenames)
     if shuffling:
         random.seed(RANDOM_SEED)
         random.shuffle(filenames)
@@ -214,7 +220,9 @@ def run(dataset_dir, output_dir, name='voc_train', shuffling=False):
                 sys.stdout.flush()
 
                 filename = filenames[i]
+                #print(filename)
                 img_name = filename[:-4]
+                #print("?????",img_name)
                 _add_to_tfrecord(dataset_dir, img_name, tfrecord_writer)
                 i += 1
                 j += 1
@@ -223,4 +231,6 @@ def run(dataset_dir, output_dir, name='voc_train', shuffling=False):
     # Finally, write the labels file:
     # labels_to_class_names = dict(zip(range(len(_CLASS_NAMES)), _CLASS_NAMES))
     # dataset_utils.write_label_file(labels_to_class_names, dataset_dir)
-    print('\nFinished converting the Pascal VOC dataset!')
+    print('\nFinished converting the Beee VOC dataset!')
+
+

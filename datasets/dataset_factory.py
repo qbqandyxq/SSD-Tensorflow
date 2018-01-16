@@ -24,11 +24,13 @@ from datasets import imagenet
 from datasets import pascalvoc_2007
 from datasets import pascalvoc_2012
 
+from datasets import BeerData
 datasets_map = {
     'cifar10': cifar10,
     'imagenet': imagenet,
     'pascalvoc_2007': pascalvoc_2007,
     'pascalvoc_2012': pascalvoc_2012,
+    'BeerData':BeerData,
 }
 
 
@@ -49,6 +51,7 @@ def get_dataset(name, split_name, dataset_dir, file_pattern=None, reader=None):
     """
     if name not in datasets_map:
         raise ValueError('Name of dataset unknown %s' % name)
+    print(name,split_name, dataset_dir)
     return datasets_map[name].get_split(split_name,
                                         dataset_dir,
                                         file_pattern,

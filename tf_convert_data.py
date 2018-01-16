@@ -26,21 +26,21 @@ python tf_convert_data.py \
 """
 import tensorflow as tf
 
-from datasets import pascalvoc_to_tfrecords
+from datasets import beer_to_tfrecords
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string(
-    'dataset_name', 'pascalvoc',
+    'dataset_name', 'beerdata',
     'The name of the dataset to convert.')
 tf.app.flags.DEFINE_string(
-    'dataset_dir', None,
+    'dataset_dir', '/nfshome/xueqin/udalearn/BeerData',#none
     'Directory where the original dataset is stored.')
 tf.app.flags.DEFINE_string(
-    'output_name', 'pascalvoc',
+    'output_name', 'beer_train',
     'Basename used for TFRecords output files.')
 tf.app.flags.DEFINE_string(
-    'output_dir', './',
+    'output_dir', '/nfshome/xueqin/udalearn/BeerData/tmp/train_tfrecord',
     'Output directory where to store TFRecords files.')
 
 
@@ -50,8 +50,8 @@ def main(_):
     print('Dataset directory:', FLAGS.dataset_dir)
     print('Output directory:', FLAGS.output_dir)
 
-    if FLAGS.dataset_name == 'pascalvoc':
-        pascalvoc_to_tfrecords.run(FLAGS.dataset_dir, FLAGS.output_dir, FLAGS.output_name)
+    if FLAGS.dataset_name == 'beerdata':
+        beer_to_tfrecords.run(FLAGS.dataset_dir, FLAGS.output_dir, FLAGS.output_name)
     else:
         raise ValueError('Dataset [%s] was not recognized.' % FLAGS.dataset_name)
 

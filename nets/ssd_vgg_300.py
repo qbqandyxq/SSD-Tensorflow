@@ -57,10 +57,11 @@ import tensorflow as tf
 import tf_extended as tfe
 from nets import custom_layers
 from nets import ssd_common
-
+import os
 slim = tf.contrib.slim
 
-
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 # =========================================================================== #
 # SSD class definition.
 # =========================================================================== #
@@ -442,9 +443,8 @@ def ssd_net(inputs,
             scope='ssd_300_vgg'):
     """SSD net definition.
     """
-    # if data_format == 'NCHW':
-    #     inputs = tf.transpose(inputs, perm=(0, 3, 1, 2))
-
+    #if data_format == 'NCHW':
+    # inputs = tf.transpose(inputs, perm=(0, 3, 1, 2))
     # End_points collect relevant activations for external use.
     end_points = {}
     with tf.variable_scope(scope, 'ssd_300_vgg', [inputs], reuse=reuse):
@@ -481,6 +481,7 @@ def ssd_net(inputs,
 
         # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
         end_point = 'block8'
+        net = tf.layers.batch_normalization(net, training=True)
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 256, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
