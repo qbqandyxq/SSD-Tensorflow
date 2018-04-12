@@ -45,8 +45,8 @@ class SSDNet(object):
         img_shape=(300, 300),
         num_classes=21,
         no_annotation_label=21,
-        feat_layers=['block4', 'block7', 'block8', 'block9', 'block10', 'block11'],
-        feat_shapes=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
+        feat_layers=['block3','block4', 'block7', 'block8', 'block9', 'block10', 'block11'],
+        feat_shapes=[(75, 75), (38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
         anchor_size_bounds=[0.1, 0.90],
         # anchor_size_bounds=[0.20, 0.90],
         anchor_sizes=[(21., 45.),
@@ -55,12 +55,6 @@ class SSDNet(object):
                       (153., 207.),
                       (207., 261.),
                       (261., 315.)],
-        # anchor_sizes=[(30., 60.),
-        #               (60., 111.),
-        #               (111., 162.),
-        #               (162., 213.),
-        #               (213., 264.),
-        #               (264., 315.)],
         anchor_ratios=[[2, .5],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
@@ -500,12 +494,13 @@ def ssd_net(inputs,
         # 38,38,256
         # Block 3.
         net4 = slim.repeat(net3, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-        #end_points['block4'] = net4
-        #38
-        net4_ = slim.max_pool2d(net4, [2, 2], scope='pool4')
+        net4 = net4 + net3
+        end_points['block4'] = net4
+        net4 = slim.max_pool2d(net4, [2, 2], scope='pool4')
+        # 19,19,512
         # Block 5.
-        #19
-        net5 = slim.repeat(net4_, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+        net5 = slim.repeat(net4, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+        net5 = net4 + net5 
         end_points['block5'] = net5
         net5 = slim.max_pool2d(net5, [3, 3], stride=1, scope='pool5')
         # 17
