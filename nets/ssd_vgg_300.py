@@ -49,21 +49,23 @@ class SSDNet(object):
         feat_shapes=[(75, 75), (38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
         anchor_size_bounds=[0.1, 0.90],
         # anchor_size_bounds=[0.20, 0.90],
-        anchor_sizes=[(21., 45.),
+        anchor_sizes=[(10., 21.), #
+                      (21., 45.),
                       (45., 99.),
                       (99., 153.),
                       (153., 207.),
                       (207., 261.),
                       (261., 315.)],
-        anchor_ratios=[[2, .5],
+        anchor_ratios=[[2, .5],     #
+                       [2, .5],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
                        [2, .5],
                        [2, .5]],
-        anchor_steps=[8, 16, 32, 64, 100, 300],
+        anchor_steps=[4, 8, 16, 32, 64, 100, 300],#4
         anchor_offset=0.5,
-        normalizations=[20, -1, -1, -1, -1, -1],
+        normalizations=[20, 20, -1, -1, -1, -1, -1],
         prior_scaling=[0.1, 0.1, 0.2, 0.2]
         )
 
@@ -471,9 +473,11 @@ def ssd_net(inputs,
         end_points[end_point] = net
         '''
         #resnet
-        net1_ = slim.conv2(inputs, 64, [3,3], scope="conv1")
+        net1_ = slim.conv2d(inputs, 64, [3,3], scope="conv1")
         # Block1.
         net1 = slim.repeat(net1_, 3, slim.conv2d, 64, [3, 3], scope='conv1')
+        #net1_ = tf.concat([net1_]*2,1)
+        #print(net1_.shape)
         net1 = net1 + net1_
         end_points['block1'] = net1
         net1 = slim.max_pool2d(net1, [2, 2], scope='pool1')
@@ -481,6 +485,7 @@ def ssd_net(inputs,
         
         # Block 2.
         net2 = slim.repeat(net1, 3, slim.conv2d, 128, [3, 3], scope='conv2')
+        net1 = tf.concat([net1]*2,1)
         net2 = net2+net1
         end_points['block2'] = net2
         net2 = slim.max_pool2d(net2, [2, 2], scope='pool2')
@@ -488,15 +493,17 @@ def ssd_net(inputs,
         
         # Block 3.
         net3 = slim.repeat(net2, 3, slim.conv2d, 256, [3, 3], scope='conv3')
-        net3 = net3 + net2
-        end_points['block3'] = net3
-        net3 = slim.max_pool2d(net3, [2, 2], scope='pool3')
+        net2 = tf.concat([net2]*2,1)
+        net3_p = net3 + net2
+        #end_points['block3'] = net3
+        net3 = slim.max_pool2d(net3_p, [2, 2], scope='pool3')
         # 38,38,256
         # Block 3.
         net4 = slim.repeat(net3, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-        net4 = net4 + net3
-        end_points['block4'] = net4
-        net4 = slim.max_pool2d(net4, [2, 2], scope='pool4')
+        net3 = tf.concat([net3] * 2, 1)
+        net4_p = net4 + net3
+        end_points['block4'] = net4_p
+        net4 = slim.max_pool2d(net4_p, [2, 2], scope='pool4')
         # 19,19,512
         # Block 5.
         net5 = slim.repeat(net4, 3, slim.conv2d, 512, [3, 3], scope='conv5')
@@ -588,7 +595,7 @@ def ssd_net(inputs,
             net7_a = tf.image.resize_nearest_neighbor(net7_a, (19, 19))#
             net7_a = tf.transpose(net7_a, perm=(0, 3, 1, 2))#nchw
             
-            net7_a = slim.conv2d(net7_a, 1024, [3,3], padding='SAME', scope='pre7_3x3')
+            net7_a = slim.conv2d(net7_a, 1024, [3, 3], padding='SAME', scope='pre7_3x3')
             net7_b = slim.conv2d(net7, 1024, [1, 1], scope='pre7_1x1')
             net7_o = net7_a + net7_b
         end_points[end_point] = net7_o
@@ -599,10 +606,23 @@ def ssd_net(inputs,
             net4_a = tf.image.resize_nearest_neighbor(net4_a, (38, 38))#
             net4_a = tf.transpose(net4_a, perm=(0, 3, 1, 2))#nchw
             
-            net4_a = slim.conv2d(net4_a, 512, [3,3], padding='SAME', scope='pre4_3x3')
-            net4_b = slim.conv2d(net4, 512, [1, 1], scope='pre4_1x1')
+            net4_a = slim.conv2d(net4_a, 512, [3, 3], padding='SAME', scope='pre4_3x3')
+            net4_b = slim.conv2d(net4_p, 512, [1, 1], scope='pre4_1x1')
+            #print("asdfasdfasdf", net4_a.shape, net4_b.shape)
             net4_o = net4_a + net4_b#38
-        end_points[end_point] = net4_o 
+        end_points[end_point] = net4_o
+        
+        end_point = 'block3'
+        with tf.variable_scope(end_point):
+            net3_a = tf.transpose(net4_o, perm=(0, 2, 3, 1))#nchw
+            net3_a = tf.image.resize_nearest_neighbor(net3_a, (75, 75))#
+            net3_a = tf.transpose(net3_a, perm=(0, 3, 1, 2))#nchw
+            
+            net3_a = slim.conv2d(net3_a, 512, [3, 3], padding='SAME', scope='pre3_3x3')
+            net3_b = slim.conv2d(net3_p, 512, [1, 1], scope='pre3_1x1')
+            print("asdfasdfasdf", net3_a.shape, net3_b.shape)
+            net3_o = net3_a + net3_b#75
+        end_points[end_point] = net3_o
         
         #original
         '''
