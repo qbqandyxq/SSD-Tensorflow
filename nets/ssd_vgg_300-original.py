@@ -45,26 +45,27 @@ class SSDNet(object):
         img_shape=(300, 300),
         num_classes=21,
         no_annotation_label=21,
-        feat_layers=['block4be', 'block7be', 'block8be', 'block9be', 'block10be', 'block11'],
-        #feat_layers=['block4', 'block7', 'block8', 'block9', 'block10', 'block11'],
-        feat_shapes=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
-        anchor_size_bounds=[0.1, 1.0],
+        feat_layers=['block3','block4', 'block7', 'block8', 'block9', 'block10', 'block11'],
+        feat_shapes=[(75, 75), (38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
+        anchor_size_bounds=[0.1, 0.90],
         # anchor_size_bounds=[0.20, 0.90],
-        anchor_sizes=[(21., 45.),
+        anchor_sizes=[(10., 21.), #
+                      (21., 45.),
                       (45., 99.),
                       (99., 153.),
                       (153., 207.),
                       (207., 261.),
                       (261., 315.)],
-        anchor_ratios=[[2, .5],
+        anchor_ratios=[[2, .5],     #
+                       [2, .5],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
                        [2, .5],
                        [2, .5]],
-        anchor_steps=[8, 16, 32, 64, 100, 300],#4
+        anchor_steps=[4, 8, 16, 32, 64, 100, 300],#4
         anchor_offset=0.5,
-        normalizations=[20, -1, -1, -1, -1, -1],
+        normalizations=[20, 20, -1, -1, -1, -1, -1],
         prior_scaling=[0.1, 0.1, 0.2, 0.2]
         )
 
@@ -294,7 +295,6 @@ def ssd_anchor_one_layer(img_shape,
     for i, r in enumerate(ratios):
         h[i+di] = sizes[0] / img_shape[0] / math.sqrt(r)
         w[i+di] = sizes[0] / img_shape[1] * math.sqrt(r)
-    print("====================================", h,w)
     return y, x, h, w
 
 
@@ -383,14 +383,248 @@ def ssd_net(inputs,
     """SSD net definition.
     """
     #if data_format == 'NCHW':
-    
-    #inputs = tf.transpose(inputs, perm=(0, 3, 1, 2))
-    print("====", inputs.shape)
+    # inputs = tf.transpose(inputs, perm=(0, 3, 1, 2))
     # End_points collect relevant activations for external use.
     end_points = {}
     with tf.variable_scope(scope, 'ssd_300_vgg', [inputs], reuse=reuse):
-        #original
+        #inception
+        '''
+        net1 = slim.repeat(inputs, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+        end_points['block1'] = net1
+        net1 = slim.max_pool2d(net1, [2, 2], scope='pool1')
+        # Block 2.
+        #net2 = slim.repeat(net1, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+        net2_1 = slim.conv2d(net1, 128, [3, 3], scope='conv2_0')
+        net2_2 = slim.conv2d(net2_1, 128, [3, 3], scope='conv2_1')
+        net2 = net2_1 + net2_2
+        end_points['block2'] = net2
+        net2 = slim.max_pool2d(net2, [2, 2], scope='pool2')
+        # Block 3.
+        #net3 = slim.repeat(net2, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+        net3_1 = slim.conv2d(net2, 256, [3, 3], scope='conv3_1')
+        #net3_1 = slim.batch_norm(net3_1, scope='bn3_1')
+        net3_2 = slim.conv2d(net3_1, 256, [3, 3], scope='conv3_2')
+        #net3_2 = slim.batch_norm(net3_2, scope='bn3_2')
+        net3_3 = slim.conv2d(net3_2, 256, [3, 3], scope='conv3_3')
+        net3 = net3_1 + net3_3
+        end_points['block3'] = net3
+        net3 = slim.max_pool2d(net3, [2, 2], scope='pool3')
+        # Block 4.
+        net4 = slim.repeat(net3, 2, slim.conv2d, 512, [3, 3], scope='conv4')
+        net4 = slim.batch_norm(net4, scope='conv4_bn')
+        with tf.variable_scope('Mixed_4'):
+            with tf.variable_scope('Branch_0'):
+                tower_conv = slim.conv2d(net4, 256, 1, scope='Conv2d_1x1')
+                # 38,38,128
+            with tf.variable_scope('Branch_1'):
+                tower_conv1_0 = slim.conv2d(net4, 256, 1, scope='Conv2d_0a_1x1')
+                tower_conv1_1 = slim.conv2d(tower_conv1_0, 256, 3, scope='Conv2d_0b_3x3')
+                # 38,38,128
+            with tf.variable_scope('Branch_2'):
+                tower_conv2_0 = slim.conv2d(net4, 128, 1, scope='Conv2d_0a_1x1')
+                tower_conv2_1 = slim.conv2d(tower_conv2_0, 128, 3, scope='Conv2d_0b_3x3')
+                tower_conv2_2 = slim.conv2d(tower_conv2_1, 256, 3, scope='Conv2d_0c_3x3')
+                # 38,38,128
+            with tf.variable_scope('Branch_3'):
+                tower_pool = slim.avg_pool2d(net4, 3, stride=1, padding='SAME', scope='AvgPool_0a_3x3')
+                tower_pool_1 = slim.conv2d(tower_pool, 256, 1, scope='Conv2d_0b_1x1')
+            net4 = tf.concat([tower_conv, tower_conv1_1,
+                              tower_conv2_2, tower_pool_1], 1)
+        end_points['block4'] = net4
+        net4 = slim.max_pool2d(net4, [2, 2], scope='pool4')
+        # Block 5.
+        net = slim.repeat(net4, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+        end_points['block5'] = net
+        net = slim.max_pool2d(net, [3, 3], stride=1, scope='pool5')
+
+        # Additional SSD blocks.
+        # Block 6: let's dilate the hell out of it!
+        net = slim.conv2d(net, 1024, [3, 3], rate=6, scope='conv6')
+        end_points['block6'] = net
+        net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
+        # Block 7: 1x1 conv. Because the fuck.
+        net = slim.conv2d(net, 1024, [1, 1], scope='conv7')
+        end_points['block7'] = net
+        net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
+
+        # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
+        end_point = 'block8'
+        net = tf.layers.batch_normalization(net, training=True)
+        with tf.variable_scope(end_point):
+            net = slim.conv2d(net, 256, [1, 1], scope='conv1x1')
+            net = custom_layers.pad2d(net, pad=(1, 1))
+            net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
+        end_point = 'block9'
+        with tf.variable_scope(end_point):
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
+            net = custom_layers.pad2d(net, pad=(1, 1))
+            net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
+        end_point = 'block10'
+        with tf.variable_scope(end_point):
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
+        end_point = 'block11'
+        with tf.variable_scope(end_point):
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
+        '''
+        #resnet
+        net1_ = slim.conv2d(inputs, 64, [3,3], scope="conv1")
+        # Block1.
+        net1 = slim.repeat(net1_, 3, slim.conv2d, 64, [3, 3], scope='conv1')
+        #net1_ = tf.concat([net1_]*2,1)
+        #print(net1_.shape)
+        net1 = net1 + net1_
+        end_points['block1'] = net1
+        net1 = slim.max_pool2d(net1, [2, 2], scope='pool1')
+        # 150,150,64
         
+        # Block 2.
+        net2 = slim.repeat(net1, 3, slim.conv2d, 128, [3, 3], scope='conv2')
+        net1 = tf.concat([net1]*2,1)
+        net2 = net2+net1
+        end_points['block2'] = net2
+        net2 = slim.max_pool2d(net2, [2, 2], scope='pool2')
+        # 75,75,128
+        
+        # Block 3.
+        net3 = slim.repeat(net2, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+        net2 = tf.concat([net2]*2,1)
+        net3_p = net3 + net2
+        #end_points['block3'] = net3
+        net3 = slim.max_pool2d(net3_p, [2, 2], scope='pool3')
+        # 38,38,256
+        # Block 3.
+        net4 = slim.repeat(net3, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+        net3 = tf.concat([net3] * 2, 1)
+        net4_p = net4 + net3
+        end_points['block4'] = net4_p
+        net4 = slim.max_pool2d(net4_p, [2, 2], scope='pool4')
+        # 19,19,512
+        # Block 5.
+        net5 = slim.repeat(net4, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+        net5 = net4 + net5 
+        end_points['block5'] = net5
+        net5 = slim.max_pool2d(net5, [3, 3], stride=1, scope='pool5')
+        # 17
+        # Additional SSD blocks.
+        # Block 6: let's dilate the hell out of it!
+        net6 = slim.conv2d(net5, 1024, [3, 3], rate=6, scope='conv6')
+        end_points['block6'] = net6
+
+        net6 = tf.layers.dropout(net6, rate=dropout_keep_prob, training=is_training)
+        # 17,17
+        # Block 7: 1x1 conv. Because the fuck.
+        net7 = slim.conv2d(net6, 1024, [1, 1], scope='conv7')
+        #end_points['block7'] = net7
+        net7_ = tf.layers.dropout(net7, rate=dropout_keep_prob, training=is_training)
+        # 17,17
+
+        # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
+        end_point = 'block8'
+        net8 = tf.layers.batch_normalization(net7_, training=True)
+        with tf.variable_scope(end_point):
+            net8 = slim.conv2d(net8, 256, [1, 1], scope='conv1x1')
+            #17
+            net8 = custom_layers.pad2d(net8, pad=(1, 1))
+            #21
+            net8 = slim.conv2d(net8, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+            #10,10
+        #end_points[end_point] = net8
+        end_point = 'block9'
+        with tf.variable_scope(end_point):
+            net9 = slim.conv2d(net8, 128, [1, 1], scope='conv1x1')
+            net9 = custom_layers.pad2d(net9, pad=(1, 1))
+            net9 = slim.conv2d(net9, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+            #5，5
+        #end_points[end_point] = net9
+        
+        end_point = 'block10'
+        with tf.variable_scope(end_point):
+            net10 = slim.conv2d(net9, 128, [1, 1], scope='conv1x1')
+            net10 = slim.conv2d(net10, 256, [3, 3], scope='conv3x3', padding='VALID')
+            #3，3
+        #end_points[end_point] = net10
+        end_point = 'block11'
+        with tf.variable_scope(end_point):
+            net11 = slim.conv2d(net10, 128, [1, 1], scope='conv1x1')
+            net11 = slim.conv2d(net11, 256, [3, 3], scope='conv3x3', padding='VALID')
+            #1，1
+        end_points[end_point] = net11
+        
+        end_point = 'block10'
+        with tf.variable_scope(end_point):
+            net10_a = tf.transpose(net11, perm=(0, 2, 3, 1))#nchw
+            net10_a = tf.image.resize_nearest_neighbor(net10_a, (3,3))
+            net10_a = tf.transpose(net10_a, perm=(0, 3, 1, 2))#nchw
+            
+            net10_a = slim.conv2d(net10_a, 256, [3,3], scope='pre10_3x3')
+            net10_b = slim.conv2d(net10, 256, [1, 1], scope='pre10_1x1')
+            net10_o = net10_a + net10_b
+        end_points[end_point] = net10_o #3
+        
+        end_point = 'block9'
+        with tf.variable_scope(end_point):
+            net9_a = tf.transpose(net10_o, perm=(0, 2, 3, 1))#nchw
+            net9_a = tf.image.resize_nearest_neighbor(net9_a, (5,5))
+            net9_a = tf.transpose(net9_a, perm=(0, 3, 1, 2))#nchw
+            
+            net9_a = slim.conv2d(net9_a, 256, [3,3], scope='pre9_3x3')
+            net9_b = slim.conv2d(net9, 256, [1, 1], scope='pre9_1x1')
+            net9_o = net9_a + net9_b
+        end_points[end_point] = net9_o#5
+        
+        end_point = 'block8'
+        with tf.variable_scope(end_point):
+            net8_a = tf.transpose(net9_o, perm=(0, 2, 3, 1))#nchw
+            net8_a = tf.image.resize_nearest_neighbor(net8_a, (10,10))
+            net8_a = tf.transpose(net8_a, perm=(0, 3, 1, 2))#nchw
+            
+            net8_a = slim.conv2d(net8_a, 512, [3,3], padding='SAME', scope='pre8_3x3')
+            net8_b = slim.conv2d(net8, 512, [1, 1], scope='pre8_1x1')#10
+            net8_o = net8_a + net8_b
+        end_points[end_point] = net8_o#10
+
+        end_point = 'block7'
+        with tf.variable_scope(end_point):
+            net7_a = tf.transpose(net8_o, perm=(0, 2, 3, 1))#nchw
+            net7_a = tf.image.resize_nearest_neighbor(net7_a, (19, 19))#
+            net7_a = tf.transpose(net7_a, perm=(0, 3, 1, 2))#nchw
+            
+            net7_a = slim.conv2d(net7_a, 1024, [3, 3], padding='SAME', scope='pre7_3x3')
+            net7_b = slim.conv2d(net7, 1024, [1, 1], scope='pre7_1x1')
+            net7_o = net7_a + net7_b
+        end_points[end_point] = net7_o
+        
+        end_point = 'block4'
+        with tf.variable_scope(end_point):
+            net4_a = tf.transpose(net7_o, perm=(0, 2, 3, 1))#nchw
+            net4_a = tf.image.resize_nearest_neighbor(net4_a, (38, 38))#
+            net4_a = tf.transpose(net4_a, perm=(0, 3, 1, 2))#nchw
+            
+            net4_a = slim.conv2d(net4_a, 512, [3, 3], padding='SAME', scope='pre4_3x3')
+            net4_b = slim.conv2d(net4_p, 512, [1, 1], scope='pre4_1x1')
+            #print("asdfasdfasdf", net4_a.shape, net4_b.shape)
+            net4_o = net4_a + net4_b#38
+        end_points[end_point] = net4_o
+        
+        end_point = 'block3'
+        with tf.variable_scope(end_point):
+            net3_a = tf.transpose(net4_o, perm=(0, 2, 3, 1))#nchw
+            net3_a = tf.image.resize_nearest_neighbor(net3_a, (75, 75))#
+            net3_a = tf.transpose(net3_a, perm=(0, 3, 1, 2))#nchw
+            
+            net3_a = slim.conv2d(net3_a, 512, [3, 3], padding='SAME', scope='pre3_3x3')
+            net3_b = slim.conv2d(net3_p, 512, [1, 1], scope='pre3_1x1')
+            print("asdfasdfasdf", net3_a.shape, net3_b.shape)
+            net3_o = net3_a + net3_b#75
+        end_points[end_point] = net3_o
+        
+        #original
         net = slim.repeat(inputs, 2, slim.conv2d, 64, [3, 3], scope='conv1')
         end_points['block1'] = net
         net = slim.max_pool2d(net, [2, 2], scope='pool1')
@@ -403,14 +637,9 @@ def ssd_net(inputs,
         end_points['block3'] = net
         net = slim.max_pool2d(net, [2, 2], scope='pool3')
         # Block 4.
-        net4 = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-        net4_ass = slim.repeat(net4, 3, slim.conv2d, 512, [1, 1], scope='conv4_ass')
-        net4 = net4 * net4_ass
-        #print("============", net4.shape)
-        
-        # 38x38
-        #end_points['block4'] = net
-        net = slim.max_pool2d(net4, [2, 2], scope='pool4')
+        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+        end_points['block4'] = net
+        net = slim.max_pool2d(net, [2, 2], scope='pool4')
         # Block 5.
         net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
         end_points['block5'] = net
@@ -423,111 +652,33 @@ def ssd_net(inputs,
         net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
         # Block 7: 1x1 conv. Because the fuck.
         net = slim.conv2d(net, 1024, [1, 1], scope='conv7')
-        #end_points['block7'] = net
-        net7 = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
-        
+        end_points['block7'] = net
+        net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
+
         # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
         end_point = 'block8'
         with tf.variable_scope(end_point):
-            net = slim.conv2d(net7, 256, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 256, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
-            net8 = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
-        #end_points[end_point] = net
+            net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
         end_point = 'block9'
         with tf.variable_scope(end_point):
-            net = slim.conv2d(net8, 128, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
-            net9 = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
-        #end_points[end_point] = net
+            net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
         end_point = 'block10'
         with tf.variable_scope(end_point):
-            net = slim.conv2d(net9, 128, [1, 1], scope='conv1x1')
-            net10 = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
-        #end_points[end_point] = net
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
         end_point = 'block11'
         with tf.variable_scope(end_point):
-            net11 = slim.conv2d(net10, 128, [1, 1], scope='conv1x1')
-            net11 = slim.conv2d(net11, 256, [3, 3], scope='conv3x3', padding='VALID')
-        end_points[end_point] = net11
-        #print("================net11 shape", net11.shape)
-        # NCHW
-        #################################################################################
-        end_point = 'block10be'
-        with tf.variable_scope(end_point):
-            net10_a = tf.transpose(net11, perm=(0, 2, 3, 1))#nchw
-            net10_a = tf.image.resize_nearest_neighbor(net10_a, (3,3))
-            net10_a = tf.transpose(net10_a, perm=(0, 3, 1, 2))#nchw
-            
-            net10_a = slim.conv2d(net10_a, 256, [3,3], scope='pre10_3x3')
-            net10_b = slim.conv2d(net10, 256, [1, 1], scope='pre10_1x1')
-            net10_o = net10_a + net10_b
-        end_points[end_point] = net10_o #3
+            net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
+            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        end_points[end_point] = net
         
-        end_point = 'block9be'
-        with tf.variable_scope(end_point):
-            net9_a = tf.transpose(net10_o, perm=(0, 2, 3, 1))#nchw
-            net9_a = tf.image.resize_nearest_neighbor(net9_a, (5,5))
-            net9_a = tf.transpose(net9_a, perm=(0, 3, 1, 2))#nchw
-            
-            net9_a = slim.conv2d(net9_a, 256, [3,3], scope='pre9_3x3')
-            net9_b = slim.conv2d(net9, 256, [1, 1], scope='pre9_1x1')
-            net9_o = net9_a + net9_b
-        end_points[end_point] = net9_o#5
-        
-        end_point = 'block8be'
-        with tf.variable_scope(end_point):
-            net8_a = tf.transpose(net9_o, perm=(0, 2, 3, 1))#nchw
-            net8_a = tf.image.resize_nearest_neighbor(net8_a, (10,10))
-            net8_a = tf.transpose(net8_a, perm=(0, 3, 1, 2))#nchw
-            
-            net8_a = slim.conv2d(net8_a, 512, [3,3], padding='SAME', scope='pre8_3x3')
-            net8_b = slim.conv2d(net8, 512, [1, 1], scope='pre8_1x1')#10
-            net8_o = net8_a + net8_b
-        end_points[end_point] = net8_o#10
-
-        end_point = 'block7be'
-        with tf.variable_scope(end_point):
-            net7_a = tf.transpose(net8_o, perm=(0, 2, 3, 1))#nchw
-            net7_a = tf.image.resize_nearest_neighbor(net7_a, (19, 19))#
-            net7_a = tf.transpose(net7_a, perm=(0, 3, 1, 2))#nchw
-            
-            net7_a = slim.conv2d(net7_a, 1024, [3, 3], padding='SAME', scope='pre7_3x3')
-            net7_b = slim.conv2d(net7, 1024, [1, 1], scope='pre7_1x1')
-            net7_o = net7_a + net7_b
-        end_points[end_point] = net7_o
-        
-        end_point = 'block4be'
-        with tf.variable_scope(end_point):
-            net4_a = tf.transpose(net7_o, perm=(0, 2, 3, 1))#nchw
-            net4_a = tf.image.resize_nearest_neighbor(net4_a, (38, 38))#
-            net4_a = tf.transpose(net4_a, perm=(0, 3, 1, 2))#nchw
-            
-            net4_a = slim.conv2d(net4_a, 512, [3, 3], padding='SAME', scope='pre4_3x3')
-            net4_b = slim.conv2d(net4, 512, [1, 1], scope='pre4_1x1')
-            #print("asdfasdfasdf", net4_a.shape, net4_b.shape)
-            net4_o = net4_a + net4_b#38
-        end_points[end_point] = net4_o
-        '''
-        # inputs = 300, 300, 3
-        net = slim.repeat(inputs, 2, slim.conv2d, 32, [3, 3], scope='conv1')
-        net = slim.conv2d(net, 64, [3, 3], scope='conv1_2')
-        # 300,300, 64
-        net1_1 = slim.max_pool2d(net, [2, 2], scope='pool1')# 150,150,64
-        net1_2 = slim.conv2d(net, 96, [3, 3], stride=2, padding='SAME', scope='conv1_3') #150,150,96
-        net1 = tf.concat(1, [net1_1, net1_2])# 150,150, 160
-        
-        with tf.variable_scope('Mixed_1a'):
-            with tf.variable_scope('Branch_0'):
-                net1_0_0 = slim.conv2d(net1, 64, [1,1], scope='conva_1')
-                net1_0_1 = slim.conv2d(net1_0_0, 96, [3,3], scope='conva_2')
-            with tf.variable_scope('Branch_1'):
-                net1_1_0 = slim.conv2d(net1, 64, [1,1], scope='convb_1')
-                net1_1_1 = slim.conv2d(net1_1_0, 96, 5, scope='convb_2')
-            net1 = tf.concat(1, [net1_0_1, net1_1_1])#150, 150, 192
-        
-        
-        
-        '''
         # Prediction and localisations layers.
         predictions = []
         logits = []
@@ -675,3 +826,103 @@ def ssd_losses(logits, localisations,
             loss = custom_layers.abs_smooth(localisations - glocalisations)
             loss = tf.div(tf.reduce_sum(loss * weights), batch_size, name='value')
             tf.losses.add_loss(loss)
+
+
+def ssd_losses_old(logits, localisations,
+                   gclasses, glocalisations, gscores,
+                   match_threshold=0.5,
+                   negative_ratio=3.,
+                   alpha=1.,
+                   label_smoothing=0.,
+                   device='/cpu:0',
+                   scope=None):
+    """Loss functions for training the SSD 300 VGG network.
+    This function defines the different loss components of the SSD, and
+    adds them to the TF loss collection.
+    Arguments:
+      logits: (list of) predictions logits Tensors;
+      localisations: (list of) localisations Tensors;
+      gclasses: (list of) groundtruth labels Tensors;
+      glocalisations: (list of) groundtruth localisations Tensors;
+      gscores: (list of) groundtruth score Tensors;
+    """
+    with tf.device(device):
+        with tf.name_scope(scope, 'ssd_losses'):
+            l_cross_pos = []
+            l_cross_neg = []
+            l_loc = []
+            for i in range(len(logits)):
+                dtype = logits[i].dtype
+                with tf.name_scope('block_%i' % i):
+                    # Sizing weight...
+                    wsize = tfe.get_shape(logits[i], rank=5)
+                    wsize = wsize[1] * wsize[2] * wsize[3]
+
+                    # Positive mask.
+                    pmask = gscores[i] > match_threshold
+                    fpmask = tf.cast(pmask, dtype)
+                    n_positives = tf.reduce_sum(fpmask)
+
+                    # Select some random negative entries.
+                    # n_entries = np.prod(gclasses[i].get_shape().as_list())
+                    # r_positive = n_positives / n_entries
+                    # r_negative = negative_ratio * n_positives / (n_entries - n_positives)
+
+                    # Negative mask.
+                    no_classes = tf.cast(pmask, tf.int32)
+                    predictions = slim.softmax(logits[i])
+                    nmask = tf.logical_and(tf.logical_not(pmask),
+                                           gscores[i] > -0.5)
+                    fnmask = tf.cast(nmask, dtype)
+                    nvalues = tf.where(nmask,
+                                       predictions[:, :, :, :, 0],
+                                       1. - fnmask)
+                    nvalues_flat = tf.reshape(nvalues, [-1])
+                    # Number of negative entries to select.
+                    n_neg = tf.cast(negative_ratio * n_positives, tf.int32)
+                    n_neg = tf.maximum(n_neg, tf.size(nvalues_flat) // 8)
+                    n_neg = tf.maximum(n_neg, tf.shape(nvalues)[0] * 4)
+                    max_neg_entries = 1 + tf.cast(tf.reduce_sum(fnmask), tf.int32)
+                    n_neg = tf.minimum(n_neg, max_neg_entries)
+
+                    val, idxes = tf.nn.top_k(-nvalues_flat, k=n_neg)
+                    max_hard_pred = -val[-1]
+                    # Final negative mask.
+                    nmask = tf.logical_and(nmask, nvalues < max_hard_pred)
+                    fnmask = tf.cast(nmask, dtype)
+
+                    # Add cross-entropy loss.
+                    with tf.name_scope('cross_entropy_pos'):
+                        fpmask = wsize * fpmask
+                        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits[i],
+                                                                              labels=gclasses[i])
+                        loss = tf.losses.compute_weighted_loss(loss, fpmask)
+                        l_cross_pos.append(loss)
+
+                    with tf.name_scope('cross_entropy_neg'):
+                        fnmask = wsize * fnmask
+                        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits[i],
+                                                                              labels=no_classes)
+                        loss = tf.losses.compute_weighted_loss(loss, fnmask)
+                        l_cross_neg.append(loss)
+
+                    # Add localization loss: smooth L1, L2, ...
+                    with tf.name_scope('localization'):
+                        # Weights Tensor: positive mask + random negative.
+                        weights = tf.expand_dims(alpha * fpmask, axis=-1)
+                        loss = custom_layers.abs_smooth(localisations[i] - glocalisations[i])
+                        loss = tf.losses.compute_weighted_loss(loss, weights)
+                        l_loc.append(loss)
+
+            # Additional total losses...
+            with tf.name_scope('total'):
+                total_cross_pos = tf.add_n(l_cross_pos, 'cross_entropy_pos')
+                total_cross_neg = tf.add_n(l_cross_neg, 'cross_entropy_neg')
+                total_cross = tf.add(total_cross_pos, total_cross_neg, 'cross_entropy')
+                total_loc = tf.add_n(l_loc, 'localization')
+
+                # Add to EXTRA LOSSES TF.collection
+                tf.add_to_collection('EXTRA_LOSSES', total_cross_pos)
+                tf.add_to_collection('EXTRA_LOSSES', total_cross_neg)
+                tf.add_to_collection('EXTRA_LOSSES', total_cross)
+                tf.add_to_collection('EXTRA_LOSSES', total_loc)
