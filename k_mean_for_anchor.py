@@ -232,13 +232,24 @@ def compute_centroids(label_path,n_anchors,loss_convergence,grid_size,iterations
     for centroid in centroids:
         print("k-means result: \n")
         print(centroid.w * grid_size, centroid.h * grid_size)
+    print("=====================")
+    arr=[]
+    index=1
+    for centroid in centroids:
+        val=centroid.w * centroid.h
+        add_part = (str(index), val)
+        arr.append(add_part)
+        index+=1
+    #print(arr)
+    sorted(arr, key=lambda x:x[1])
+    print("=",arr)
     
 
 path = '/nfshome/xueqin/udalearn/data/VOCdevkit/VOC2007/Annotations/000005.xml'
 label_path = "/nfshome/xueqin/udalearn/data/VOCdevkit/VOC2007/Annotations/"
-n_anchors = 9
-loss_convergence = 1e-7
-grid_size = 38
+n_anchors = 30
+loss_convergence = 1e-4
+grid_size = 1
 iterations_num = 1000
 plus = 0
 compute_centroids(label_path,n_anchors,loss_convergence,grid_size,iterations_num,plus)
