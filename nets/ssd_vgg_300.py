@@ -10,8 +10,7 @@ from nets import ssd_common
 import os
 slim = tf.contrib.slim
 
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="4"
+
 # =========================================================================== #
 # SSD class definition.
 # =========================================================================== #
@@ -56,13 +55,13 @@ class SSDNet(object):
                       (153., 207.),
                       (207., 261.),
                       (261., 315.)],
-        anchor_ratios=[[2, .5],
-                       [2, .5, 3, 1./3],
-                       [2, .5, 3, 1./3],
-                       [2, .5, 3, 1./3],
-                       [2, .5],
-                       [2, .5]],
-        anchor_steps=[8, 16, 32, 64, 100, 300],#4
+        anchor_ratios=[[3.05, .55],
+                       [4.2, .43, 2.1, .72],
+                       [4.2, .43, 2.1, .72],
+                       [4.2, .43, 2.1, .72],
+                       [3.05, .55],
+                       [3.05, .55],],
+        anchor_steps=[8, 16, 32, 64, 100, 300],
         anchor_offset=0.5,
         normalizations=[20, -1, -1, -1, -1, -1],
         prior_scaling=[0.1, 0.1, 0.2, 0.2]
@@ -281,11 +280,114 @@ def ssd_anchor_one_layer(img_shape,
     # Compute relative height and width.
     # Tries to follow the original implementation of SSD for the order.
     num_anchors = len(sizes) + len(ratios)
+    
+    # Add first anchor boxes with ratio=1.
+    
+    '''
     h = np.zeros((num_anchors, ), dtype=dtype)
     w = np.zeros((num_anchors, ), dtype=dtype)
-    # Add first anchor boxes with ratio=1.
+    if sizes[0]==21:
+        w[0]= 0.07#0.6226406042097197 ##
+        h[0]= 0.07#0.06097823369670409 ##
+        
+        w[1]= 0.2817900581546291 
+        h[1]= 0.1709254321034428
+        
+        w[2]= 0.12856059450050417
+        h[2]= 0.5936804574323933
+        
+        w[3]= 0.1#0.6885893096118244 #0.1#
+        h[3]= 0.1#0.11361447014366964 #0.1#
+    elif sizes[0] == 45:
+        w[0]= 0.5637220012089151
+        h[0]= 0.2171666867125047
+        
+        w[1]= 0.37190687107777665 #0.15#
+        h[1]= 0.33145800418837723 #0.15#
+        
+        w[2]= 0.28235313940395107
+        h[2]= 0.5315628664971818
+        
+        w[3]= 0.8661445310667978
+        h[3]= 0.17543346823316144
+        
+        w[4]= 0.2119578059491015
+        h[4]= 0.8442917148587913
+        
+        w[5]= 0.6345084838163698
+        h[5]= 0.34157773612074016
+    elif sizes[0] == 99:
+        w[0]= 0.879581810232616 #0.33#
+        h[0]= 0.26326779228278535 #0.33#
+        
+        w[1]= 0.5182249773837754 
+        h[1]= 0.453369415536223
+        
+        w[2]= 0.4400071011823397
+        h[2]= 0.6208753147903942
+        
+        w[3]= 0.3249690423361021
+        h[3]= 0.8506196694398569
+        
+        w[4]= 0.9361624310324689
+        h[4]= 0.3613866153297065
+        
+        w[5]= 0.7570171535805835
+        h[5]= 0.45007541305626997
+        
+    elif sizes[0] == 153:
+        w[0]= 0.6323263151496324 #0.51#
+        h[0]= 0.5625086520560226 #0.51#
+        
+        w[1]= 0.4286479134255227 
+        h[1]= 0.896354799295622
+        
+        w[2]= 0.5639741779077256
+        h[2]= 0.7099333873266612
+        
+        w[3]= 0.8127147069253777
+        h[3]= 0.5911745420388036
+        
+        w[4]= 0.9669416662972017
+        h[4]= 0.5006411236510211
+        
+        w[5]= 0.709857711696845
+        h[5]= 0.7032392550257252
+    
+    elif sizes[0] == 207:
+        w[0]= 0.5330277380605914 #0.69#
+        h[0]= 0.9496621340603368 #0.69#
+        
+        w[1]= 0.634213359430225
+        h[1]= 0.8798663440080869
+        
+        w[2]= 0.9676740197061093
+        h[2]= 0.6636433675358576
+        
+        w[3]= 0.8212706899243332
+        h[3]= 0.7826311634797078
+    elif sizes[0] == 261:
+        w[0]= 0.9722688197539527#0.87
+        h[0]= 0.8200709629893037#0.87
+        
+        w[1]= 0.7290641364912129 
+        h[1]= 0.9512706941293938
+        
+        w[2]= 0.8544768439969375
+        h[2]= 0.9510762036216801
+        
+        w[3]= 0.9877004263211381
+        h[3]= 0.9796718267824008
+    print("================hhhhhhhh=================", h)
+    print("================wwwwwwww=================", w)
+    
+    
+    '''
+    h = np.zeros((num_anchors, ), dtype=dtype)
+    w = np.zeros((num_anchors, ), dtype=dtype)
     h[0] = sizes[0] / img_shape[0]
     w[0] = sizes[0] / img_shape[1]
+    
     di = 1
     if len(sizes) > 1:
         h[1] = math.sqrt(sizes[0] * sizes[1]) / img_shape[0]
@@ -294,7 +396,9 @@ def ssd_anchor_one_layer(img_shape,
     for i, r in enumerate(ratios):
         h[i+di] = sizes[0] / img_shape[0] / math.sqrt(r)
         w[i+di] = sizes[0] / img_shape[1] * math.sqrt(r)
-    print("====================================", h,w)
+    print("================hhhhhhhh=================", h)
+    print("================wwwwwwww=================", w)
+    
     return y, x, h, w
 
 
@@ -356,16 +460,22 @@ def ssd_multibox_layer(inputs,
     num_loc_pred = num_anchors * 4
     loc_pred = slim.conv2d(net, num_loc_pred, [3, 3], activation_fn=None,
                            scope='conv_loc')
+    #print("====loc_pred===", loc_pred.shape)
     loc_pred = custom_layers.channel_to_last(loc_pred)
+    #print("====loc_pred===", loc_pred.shape)
     loc_pred = tf.reshape(loc_pred,
                           tensor_shape(loc_pred, 4)[:-1]+[num_anchors, 4])
+    #print("====loc_pred===", loc_pred.shape)
     # Class prediction.
     num_cls_pred = num_anchors * num_classes
     cls_pred = slim.conv2d(net, num_cls_pred, [3, 3], activation_fn=None,
                            scope='conv_cls')
+    #print("====cls_pred===", cls_pred.shape)
     cls_pred = custom_layers.channel_to_last(cls_pred)
+    #print("====cls_pred===", cls_pred.shape)
     cls_pred = tf.reshape(cls_pred,
                           tensor_shape(cls_pred, 4)[:-1]+[num_anchors, num_classes])
+    #print("====cls_pred===", cls_pred.shape)
     return cls_pred, loc_pred
 
 
@@ -404,8 +514,9 @@ def ssd_net(inputs,
         net = slim.max_pool2d(net, [2, 2], scope='pool3')
         # Block 4.
         net4 = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-        net4_ass = slim.repeat(net4, 3, slim.conv2d, 512, [1, 1], scope='conv4_ass')
-        net4 = net4 * net4_ass
+        #net4_ass = slim.repeat(net4, 3, slim.conv2d, 512, [1, 1], scope='conv4_ass')
+        #net4 = net4 * net4_ass
+        
         #print("============", net4.shape)
         
         # 38x38
@@ -458,9 +569,10 @@ def ssd_net(inputs,
             net10_a = tf.image.resize_nearest_neighbor(net10_a, (3,3))
             net10_a = tf.transpose(net10_a, perm=(0, 3, 1, 2))#nchw
             
-            net10_a = slim.conv2d(net10_a, 256, [3,3], scope='pre10_3x3')
-            net10_b = slim.conv2d(net10, 256, [1, 1], scope='pre10_1x1')
-            net10_o = net10_a + net10_b
+            net10_a = slim.conv2d(net10_a, 256, 3, scope='pre10_3x3')
+            net10_b = slim.conv2d(net10, 256, 1, scope='pre10_1x1')
+            net10_o = net10_a * net10_b
+            net10_o = slim.conv2d(net10_o, 256, 3, scope='pre10_3x3_')
         end_points[end_point] = net10_o #3
         
         end_point = 'block9be'
@@ -471,7 +583,8 @@ def ssd_net(inputs,
             
             net9_a = slim.conv2d(net9_a, 256, [3,3], scope='pre9_3x3')
             net9_b = slim.conv2d(net9, 256, [1, 1], scope='pre9_1x1')
-            net9_o = net9_a + net9_b
+            net9_o = net9_a * net9_b
+            net9_o = slim.conv2d(net9_o, 256, 3, scope='pre9_3x3_')
         end_points[end_point] = net9_o#5
         
         end_point = 'block8be'
@@ -482,7 +595,8 @@ def ssd_net(inputs,
             
             net8_a = slim.conv2d(net8_a, 512, [3,3], padding='SAME', scope='pre8_3x3')
             net8_b = slim.conv2d(net8, 512, [1, 1], scope='pre8_1x1')#10
-            net8_o = net8_a + net8_b
+            net8_o = net8_a * net8_b
+            net8_o = slim.conv2d(net8_o, 512, 3, scope='pre8_3x3_')
         end_points[end_point] = net8_o#10
 
         end_point = 'block7be'
@@ -493,7 +607,8 @@ def ssd_net(inputs,
             
             net7_a = slim.conv2d(net7_a, 1024, [3, 3], padding='SAME', scope='pre7_3x3')
             net7_b = slim.conv2d(net7, 1024, [1, 1], scope='pre7_1x1')
-            net7_o = net7_a + net7_b
+            net7_o = net7_a * net7_b
+            net7_o = slim.conv2d(net7_o, 1024, 3, scope='pre7_3x3_')
         end_points[end_point] = net7_o
         
         end_point = 'block4be'
@@ -503,9 +618,14 @@ def ssd_net(inputs,
             net4_a = tf.transpose(net4_a, perm=(0, 3, 1, 2))#nchw
             
             net4_a = slim.conv2d(net4_a, 512, [3, 3], padding='SAME', scope='pre4_3x3')
-            net4_b = slim.conv2d(net4, 512, [1, 1], scope='pre4_1x1')
-            #print("asdfasdfasdf", net4_a.shape, net4_b.shape)
-            net4_o = net4_a + net4_b#38
+            #net4_b = slim.conv2d(net4, 512, [1, 1], scope='pre4_1x1')
+            net4_b = slim.conv2d(net4, 128, 1, padding='SAME', scope='pre4_1x1_1')# 128, 1
+            net4_b = slim.conv2d(net4_b, 256, 3, padding='SAME', scope='pre4_1x1_2')# 256, 1
+            net4_b = slim.conv2d(net4_b, 512, 1, padding='SAME', scope='pre4_1x1_3')# 512, 1
+            
+            #net4_ass = slim.repeat(net4, 3, slim.conv2d, 512, [1, 1], scope='conv4_ass')
+            net4_o = net4_a * net4_b#38
+            net4_o = slim.conv2d(net4_o, 512, 3, scope='pre4_3x3_')
         end_points[end_point] = net4_o
         '''
         # inputs = 300, 300, 3
